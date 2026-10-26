@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "apps/ai-trading-backend/src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "builder": "rspack",
+    "tsConfigPath": "apps/ai-trading-backend/tsconfig.app.json"
+  },
+  "monorepo": true,
+  "root": "apps/ai-trading-backend",
+  "projects": {
+    "ai-trading-backend": {
+      "type": "application",
+      "root": "apps/ai-trading-backend",
+      "entryFile": "main",
+      "sourceRoot": "apps/ai-trading-backend/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/ai-trading-backend/tsconfig.app.json"
+      }
+    },
+    "trading-agents": {
+      "type": "application",
+      "root": "apps/trading-agents",
+      "entryFile": "main",
+      "sourceRoot": "apps/trading-agents/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/trading-agents/tsconfig.app.json"
+      }
+    }
+  }
+}
