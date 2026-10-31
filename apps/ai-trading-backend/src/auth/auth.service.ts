@@ -22,12 +22,10 @@ export class AuthService {
     private readonly otpRepo: Repository<OTPVerification>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
-  ) {}
+  ) { }
 
-  // ─── Step 1: Register ────────────────────────────────────────────────────────
 
   async register(dto: RegisterDto) {
-    // Reject if a verified user with this email/phone already exists
     const existingUser = await this.userRepo.findOne({
       where: [{ email: dto.email }, { phone_no: dto.phone_no }],
     });
@@ -37,7 +35,6 @@ export class AuthService {
       );
     }
 
-    // Clean up any stale temp entry for this email
     await this.tempUserRepo.delete({ email: dto.email });
 
     const password_hash = await bcrypt.hash(dto.password, 12);
@@ -52,11 +49,9 @@ export class AuthService {
     });
     await this.tempUserRepo.save(tempUser);
 
-    // Generate and store OTP for email verification
     const otp = this.generateOtp();
     await this.saveOtp(dto.email, otp, OTPType.Email);
 
-    // TODO: send OTP via email (plug in mailer service here)
     console.log(`[DEV] Email OTP for ${dto.email}: ${otp}`);
 
     return {
@@ -65,7 +60,6 @@ export class AuthService {
     };
   }
 
-  // ─── Step 2: Verify OTP & Promote to User ────────────────────────────────────
 
   async verifyOtp(dto: VerifyOtpDto) {
     const otpRecord = await this.otpRepo.findOne({
@@ -83,11 +77,8 @@ export class AuthService {
       throw new BadRequestException('Invalid OTP.');
     }
 
-    // Mark OTP as consumed
-    otpRecord.is_used = true;
     await this.otpRepo.save(otpRecord);
 
-    // Promote TempUser → User
     const tempUser = await this.tempUserRepo.findOne({
       where: { email: dto.contact },
     });
@@ -109,7 +100,6 @@ export class AuthService {
     });
     await this.userRepo.save(user);
 
-    // Clean up temp record
     await this.tempUserRepo.delete({ temp_user_id: tempUser.temp_user_id });
 
     return {
@@ -118,7 +108,6 @@ export class AuthService {
     };
   }
 
-  // ─── Helpers ─────────────────────────────────────────────────────────────────
 
   private generateOtp(length = 6): string {
     return Array.from({ length }, () => Math.floor(Math.random() * 10)).join('');
@@ -129,7 +118,6 @@ export class AuthService {
     otp: string,
     type: OTPType,
   ): Promise<void> {
-    // Invalidate previous unused OTPs for this contact
     await this.otpRepo.update(
       { contact, type, is_used: false },
       { is_used: true },
