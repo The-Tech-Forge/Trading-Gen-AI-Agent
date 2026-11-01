@@ -3,6 +3,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsStrongPassword,
   Matches,
   MaxLength,
   MinLength,
@@ -35,16 +36,17 @@ export class RegisterDto {
   })
   phone_no: string;
 
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(8)
-  @MaxLength(64)
-  @Matches(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=])[A-Za-z\d@$!%*?&#^()_+\-=]+$/,
+  @IsStrongPassword(
     {
-      message:
-        'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character. Spaces are not allowed.',
+      minLength: 8,
+      minLowercase: 1,
+      minUppercase: 1,
+      minNumbers: 1,
+      minSymbols: 1,
     },
-  )
+    {
+      message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character. Spaces are not allowed."
+
+    })
   password: string;
 }

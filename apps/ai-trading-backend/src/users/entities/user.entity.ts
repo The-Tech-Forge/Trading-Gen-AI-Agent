@@ -7,6 +7,12 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+
+export enum UserType {
+  DEFAULT = "default",
+  ADMIN = "admin"
+}
+
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -35,6 +41,12 @@ export class User {
 
   @Column({ default: false })
   is_phone_verified: boolean;
+
+  @Column({ type: 'enum', enum: UserType, default: UserType.DEFAULT })
+  user_type: UserType
+
+  @Column({ default: true })
+  is_active: boolean
 
   @CreateDateColumn()
   created_at: Date;

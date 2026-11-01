@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -11,7 +12,10 @@ import { RegisterDto } from './dto/register.dto.js';
 import { VerifyOtpDto } from './dto/verify-otp.dto.js';
 import { TempUser } from './entity/temp-user.entity.js';
 import { OTPVerification, OTPType } from './entity/otp-verification.entity.js';
-import { User } from '../users/entities/user.entity.js';
+import { User, UserType } from '../users/entities/user.entity.js';
+import { LoginDTO } from './dto/login.dto.js';
+import { Response, Request } from 'express';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
@@ -22,6 +26,8 @@ export class AuthService {
     private readonly otpRepo: Repository<OTPVerification>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+
+    private readonly jwtService: JwtService,
   ) { }
 
 
@@ -133,5 +139,116 @@ export class AuthService {
       expire_at: expireAt,
     });
     await this.otpRepo.save(record);
+  }
+
+  private setAuthTokenCookie(res: Response, token: string) {
+    res.cookie("access_token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      maxAge: 15 * 60 * 1000,
+    })
+  }
+
+  private setRefreshTokenCookie(res: Response, token: string) {
+    res.cookie("refresh_token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      maxAge: 15 * 60 * 1000,
+    })
+  }
+
+  private async generateToken(user_id: string, user_type: UserType, email: string, generate_refresh: boolean, res: Response) {
+    const auth_payload = {
+      user_id: user_id,
+      user_type: user_type,
+      email: email
+    }
+
+    const auth_token = await this.jwtService.signAsync(auth_payload)
+    this.setAuthTokenCookie(res, auth_token)
+
+    if (generate_refresh) {
+      const refresh_token = await this.jwtService.signAsync(
+        auth_payload,
+        {
+          secret: process.env.REFRESH_SECRET,
+          expiresIn: '1d'
+        }
+      )
+      this.setRefreshTokenCookie(res, refresh_token)
+    }
+
+  }
+
+  private async getUser(email: string) {
+    const user = await this.userRepo.findOne({
+      where: { email: email },
+      select: {
+        user_id: true,
+        user_type: true,
+        first_name: true,
+        middle_name: true,
+        last_name: true,
+        password_hash: true,
+        email: true,
+        phone_no: true,
+        is_active: true
+      }
+    });
+
+    if (!user) {
+      throw new NotFoundException('Invalid Email or Password!');
+    }
+
+    if (!user.is_active) {
+      throw new BadRequestException('Account is Inactive. Contact Support for Assistance.');
+    }
+
+    return user
+  }
+
+  private buildUserResponse(user: User) {
+    return {
+      user_id: user.user_id,
+      user_type: user.user_type,
+      first_name: user.first_name,
+      middle_name: user.middle_name,
+      last_name: user.last_name,
+      email: user.email,
+      phone_no: user.phone_no,
+    }
+  }
+
+  async login(dto: LoginDTO, res: Response) {
+    const user = await this.getUser(dto.email)
+
+    const isPasswordValid = await bcrypt.compare(dto.password, user.password_hash);
+    if (!isPasswordValid) {
+      throw new BadRequestException('Invalid Email or Password!');
+    }
+
+    await this.generateToken(user.user_id, user.user_type, user.email, true, res)
+    return {
+      message: 'Login successful.',
+      user: this.buildUserResponse(user)
+    };
+  }
+
+  async refresh(req: Request, res: Response) {
+    const refresh_token = req.cookies.refresh_token
+    if (!refresh_token) {
+      throw new UnauthorizedException('Refresh token not found.')
+    }
+    const decodedToken = await this.jwtService.verifyAsync(refresh_token, {
+      secret: process.env.REFRESH_SECRET
+    })
+    const user = await this.getUser(decodedToken.email)
+    await this.generateToken(user.user_id, user.user_type, user.email, false, res)
+    return {
+      message: 'Refresh token successful.',
+      user: this.buildUserResponse(user)
+    }
   }
 }
