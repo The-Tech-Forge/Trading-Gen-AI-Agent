@@ -9,8 +9,8 @@ import {
 
 
 export enum UserType {
-  DEFAULT = "default",
-  ADMIN = "admin"
+  DEFAULT = 'DEFAULT',
+  ADMIN = 'ADMIN',
 }
 
 @Entity('users')

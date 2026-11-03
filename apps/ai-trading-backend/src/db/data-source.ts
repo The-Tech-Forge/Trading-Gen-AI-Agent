@@ -15,8 +15,8 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  synchronize: false,
-  logging: true,
+  synchronize: true,
+  logging: false,
   entities: [
     path.join(__dirname, '/../**/*.entity{.ts,.js}'),
     path.join(__dirname, '/../**/entities/**/*{.ts,.js}'),
@@ -26,9 +26,9 @@ export const AppDataSource = new DataSource({
   extra:
     process.env.DB_SSL === 'true'
       ? {
-          ssl: {
-            rejectUnauthorized: false,
-          },
-        }
+        ssl: {
+          rejectUnauthorized: false,
+        },
+      }
       : {},
 });
