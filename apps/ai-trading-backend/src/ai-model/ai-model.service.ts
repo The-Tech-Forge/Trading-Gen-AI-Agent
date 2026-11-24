@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { AIProviderDTO, UpdateAIProviderDto } from './dto/ai-provider.dto.js';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AIProvider } from './entities/ai-provider.entity.js';
@@ -6,6 +6,8 @@ import { Repository } from 'typeorm';
 import { AIModel } from './entities/ai-model.entity.js';
 import { UserType } from '../users/entities/user.entity.js';
 import { Transactional } from 'typeorm-transactional';
+import { AIModelPricing } from './entities/ai-model-pricing.entity.js';
+import { CreateAiModelPricingDto } from './dto/ai-model.dto.js';
 
 @Injectable()
 export class AiModelService {
@@ -13,6 +15,7 @@ export class AiModelService {
   constructor(
     @InjectRepository(AIProvider) private providerRepo: Repository<AIProvider>,
     @InjectRepository(AIModel) private modelRepo: Repository<AIModel>,
+    @InjectRepository(AIModelPricing) private modelPricingRepo: Repository<AIModelPricing>
   ) { }
 
   @Transactional()
@@ -117,5 +120,70 @@ export class AiModelService {
       status: true,
       ai_provider,
     };
+  }
+
+  @Transactional()
+  async createPricing(dto: CreateAiModelPricingDto) {
+    const model = await this.modelRepo.findOne({
+      where: {
+        ai_model_id: dto.ai_model_id
+      }
+    })
+
+    if (!model) {
+      throw new NotFoundException("AI model not found");
+    }
+
+    const effectiveFrom = new Date(dto.effective_from);
+
+    if (effectiveFrom <= new Date()) {
+      throw new BadRequestException(
+        "Pricing must have a future effective date",
+      );
+    }
+
+    const latestPricing = await this.modelPricingRepo.findOne({
+      where: {
+        model: {
+          ai_model_id: dto.ai_model_id
+        }
+      },
+      order: {
+        effective_from: 'DESC'
+      }
+    })
+
+    if (latestPricing) {
+      if (
+        latestPricing.effective_to &&
+        effectiveFrom < latestPricing.effective_to
+      ) {
+        throw new ConflictException(
+          "New pricing overlaps with existing pricing period",
+        );
+      }
+
+      if (!latestPricing.effective_to) {
+        latestPricing.effective_to = effectiveFrom
+        await this.modelPricingRepo.save(latestPricing)
+      }
+    }
+
+    const newPricing = await this.modelPricingRepo.save({
+      input_price: dto.input_price,
+      output_price: dto.output_price,
+      currency: dto.currency.toUpperCase(),
+      effective_from: effectiveFrom,
+      effective_to: null,
+      model: {
+        ai_model_id: dto.ai_model_id
+      }
+    })
+
+    return {
+      status: true,
+      message: "New Pricing Created Successfully",
+      newPricing
+    }
   }
 }

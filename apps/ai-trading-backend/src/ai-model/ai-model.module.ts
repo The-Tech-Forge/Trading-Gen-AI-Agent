@@ -4,13 +4,15 @@ import { AiModelController } from './ai-model.controller.js';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AIProvider } from './entities/ai-provider.entity.js';
 import { AIModel } from './entities/ai-model.entity.js';
+import { AIModelPricing } from './entities/ai-model-pricing.entity.js';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature(
       [
         AIProvider,
-        AIModel
+        AIModel,
+        AIModelPricing
       ]
     )
   ],
