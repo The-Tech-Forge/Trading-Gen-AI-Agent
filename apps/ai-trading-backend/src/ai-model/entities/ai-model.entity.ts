@@ -10,7 +10,7 @@ export class AIModel {
     @Column()
     model: string
 
-    @Column()
+    @Column({ nullable: true })
     description: string
 
     @CreateDateColumn()

@@ -1,4 +1,4 @@
-import { IsBoolean, IsNotEmpty, IsString } from "class-validator";
+import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString } from "class-validator";
 
 
 export class AIModelDto {
@@ -7,10 +7,16 @@ export class AIModelDto {
     model: string
 
     @IsString()
-    @IsNotEmpty()
+    @IsOptional()
     description: string
 
     @IsBoolean()
     @IsNotEmpty()
     is_active: boolean
+}
+
+export class UpdateAIModelDto extends AIModelDto {
+    @IsString()
+    @IsNotEmpty()
+    ai_model_id: string
 }
